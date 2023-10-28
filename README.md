@@ -1,5 +1,6 @@
 # CICASS
-initial conditions generator that self-consistently includes streaming velocity
+initial conditions generator that self-consistently includes streaming velocity of the baryons 
+relative to the dark matter, for cosmological simulations
 
 This code is from https://arxiv.org/abs/1204.1344 and https://arxiv.org/abs/1204.1345 and has been used by many
 subsequent studies of streaming velocity.  Its chief use is to initialize streaming velocity simulations
