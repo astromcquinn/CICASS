@@ -1,0 +1,278 @@
+*****************************************************************************
+*****************************************************************************
+README for CICASS initial conditions generator
+*****************************************************************************
+*****************************************************************************
+This is the initial conditions generator used in arxiv:1204.1344 and
+arxiv:1204:1345.  It generates outputs that can be used with both the
+GADGET and Enzo cosmology codes.  Minor modifications will allow it to
+be used with other codes.  Some of our motivations for writing this
+code were that we wanted the flexibility to experiment with different
+initial setups and different cosmology codes, as well as to include
+the velocity difference between the baryons and the dark matter that
+is imparted by Compton drag prior to recombination (in contrast to
+previous codes). This code boasts a few modest advantages:
+
+1)It allows for initial conditions that include self-consistently a
+coherent baryonic flow over the box (using linear solutions that
+assume Compton drag of the CMB on the baryons goes to zero at z=1000,
+as motivated in Tseliakhovich & Hirata ’10).  For all box sizes that
+are currently capable of resolving the Jeans' scale during the Dark
+Ages, the approximation that this flow is coherent is excellent
+(whereas the approximation of neglecting this bulk flow can be bad).
+
+2)This code initializes the baryons and dark matter with 1st order
+Lagrangian perturbation theory.  This includes the correct rate of
+growth of modes at times when the density and velocities are not equal
+or on scales at which pressure matters. We found that other initial
+conditions generators made approximations (especially for the dark
+matter/gas velocities) that are not valid when the dark matter and
+baryons do not trace each other or on scales where gas pressure
+impacts growth.  This code either can use transfer functions
+calculated with CAMB/CMBFast transfer function codes in the case
+without relative velocities (examples using currently preferred
+parameters and CAMB are supplied in vbc_transfer/TFs).  In cases with
+a bulk velocity difference between the dark matter and baryons,
+transfer functions can be calculated with the supplied vbc_transfer
+program.  CICASS can also include temperature fluctuations in the initial
+conditions if a temperature transfer function is provided/calculated
+using vbc_transfer.
+
+3) CICASS has the flexibility to either start the particles at
+positions set by a glass file (a file where the particles are placed
+so that the gravitational forces between particles are minimized) or to start them from
+a grid.  We supply -- CICASS/glass/glass_128_usethis -- a 128^3 glass
+file that has been evolved a factor of 10^4 in scale factor [as
+recommend in Crocce et al (2006) to minimize transients].  This file
+can be tiled to seed [n 128]^3 particle simulations, where n is an
+integer.
+
+4) CICASS consistently accounts for the impact of radiation on the
+expansion history and the standard Cosmological thermal history. In
+addition, we point out below where to initialize flags / make changes in
+GADGET2 and Enzo so that each code correctly accounts for radiation
+and the thermal history of the gas prior to astrophysical reheating.
+(This does not include molecular and atomic cooling, which is
+important in the densest environments. This cooling is built into
+Enzo, but with GADGET you will need GADGET3.)
+
+5) Random numbers are chosen so that higher resolution grids have the
+same large-scale modes if these grids are generated with the same
+seed.
+
+6) It allows for different gas/dark matter particle staggering,
+different gas/dark matter array sizes/different interpolation kernels
+
+
+However, for many applications this code is not superior to other
+codes. For dark matter only simulations, one might as well use a
+scheme that uses 2LPT (eg., http://cosmo.nyu.edu/roman/2LPT/).  This
+code is not parallelized over distributed memory, and it does not
+currently do zoom ins.  (Although, you can easily sample a region with
+higher resolution using this code, but it currently has to be done
+with the same Fourier grid.  This may not be so bad if the Jeans scale
+is resolved outside of the zoom-in region.)
+
+
+*********************Files*************************
+Makefile:  There are many possible compile time flags for generating different types of
+initial conditions that must be switched on/off there.
+
+main.c         :  The body of the program
+
+io.c           :  Some input/output functions that generate auxiliary outputs
+
+getPk.c        :  Read in power spectrum information
+
+rread_glass.cead_galss.c   :  Reads in a Glass file (in gadget format) and also includes function to output gadget IC file
+ 
+enzo_out.c     :  Outputs enzo IC file  
+
+subdirectory vbc_transfer  :  The code to calculate the transfer function with vbc.
+
+**********************Libaries**************************
+Code needs to be linked to the fftw3 and gsl libraries for all computations.
+It needs to be linked to hdf5 if Enzo ICs are desired.
+
+*************************************************************
+********************Compile time options*********************
+*************************************************************
+
+#-----------------------------Output operations
+OPT += -DOUTPUT_GADGET      	    #OUTPUT a gadget snapshot file
+#OPT += -DTWO_GADGET_OUTFILES       #do dark matter and gas calculation separately (to conserve memory) and output 2 files 
+#OPT += -DOUTPUT_ENZO               #OUTPUT enzo grid file (cannot output gadget and enzo for same run)
+
+
+#-----------------------------Glass file options (program uses a single glass file that is tiled appropriately across the box)
+#---------------------------------------------if not set, uses a grid.  It would be unusual to initialize DM with glass but not gas
+OPT += -DGLASS_DM                    #Generates DM positions from a glass file
+OPT += -DGLASS_GAS                   #Generate gas positions from a glass file (the default is so that they are staggered at .5 mean interparticle spacings from DM particles) 
+OPT += -DLARGE_SPACING               #Offset gas glass positions by dimension_glass/2 in each direction (This is the preferred method in Yoshida et al (2003)
+                                     # but we do not recommend it as we find it leads to larger particle coupling.
+
+#------------------------------Miscellaneous
+#OPT += -DNO_DELTA                   #do not calculate/output baryonic density  CANNOT BE SET FOR ENZO OUTPUTS. This saves a minor amount of memory and Gadget will estimate density from particle positions instead.
+#OPT += -DNO_TEMPERATURE             #does not output temperature (FOR GADGET ONLY). Saves a minor amount of memory.
+#OPT += -DNGP                        # The default is CIC gridding for interpolation onto glass locations, but one can do NGP.
+#OPT += -DBOOST_EVERYTHING_BYVKMSEC=3  #velocity boost in the i direction at start of simulation (tests that results do not depend on frame)
+#OPT += -DUSE_OTHER_GRID_SIZE=256    #use an initial conditions grid that is different than the output grid
+#OPT += -DTWO_ARRAY_SIZES            #currently this is unfinished.  Its aim is to have a different array size of the gas and dark matter.  Ask us if you would like this implemented.
+
+#------------------------------Performance
+OPT += -DOPENMP -fopenmp             #parallelizes over shared memory part of calculation that is slowest -- the TF spline
+
+****************************************************
+*****************Execution**************************
+****************************************************
+
+*********Cosmology options:  If these are not set, the cosmology defaults to h=0.71, OmegaM=0.27, OmegaB=0.46
+-H0.7 sets Hubble parameter to 0.7
+-O0.3 sets OmegaMatter to 0.3 (a flat LCDM Universe is assumed with Omega_Lambda = 1-Omega_M-Omega_rad). 
+-B0.46 sets OmegaBaryon to 0.46
+
+******Streaming velocity options
+-V30  the streaming velocity (in km/s) at z=1000 in linear theory.  Note that this scales as (1+z)^{-1} 
+
+******Parameters of initial conditions calculation
+-L1.0 sets box size to 1.0 Mpc/h 
+-Z100 sets initial redshift to 100  (*defaults to 200 if not set*)
+-N128 sets calculation to be performed on 128^3 grid
+-G128 sets dimension of glass file to be 128x128x128
+-R101 seeds the random number generator with the value 101 (*If unset, defaults to 113334*)
+-S1 -- dark matter only -S2  -- dark matter plus gas (defaults to S2) 
+
+********Input/output file name options
+-P1 -- prints the input power spectrum into the output file *basefileout*.pk  -P0  --does not
+-o./    sets output file directory to be "./"  DEFAULTS TO "./"
+-bdescription  sets part of the filename to be "description"   DEFAULTS TO "test"
+-gglass.dat  sets glass file to be "./glass.dat".  DEFAULTS TO ../glass/glass_128_usethis
+
+The code also outputs at .pk.dat file in the output directory, which is just an ascii file of the
+baryonic power spectrum in the box.  The power spectrum of other fields can be output by generalizing 
+the part of the code that outputs this file.  
+*******************************************************
+*******************EXAMPLES****************************
+*******************************************************
+./genICs.x -L.2 -V30 -N128 -G128 -Z200  -o/Volumes/raid/IGM_highz/testICs2/ -bexample_v30
+	   Reads in file initSimCartZI200.0_Vbc30.0_128_0.2.dat, which was first generated with vbc_transfer/ code and makes initial
+	   conditions for .2/h Mpc box for z_i=200, vbc=30km/s at z=1000 for 128^3 gas and 128^3 dm particles
+	   It outputs to the file /Volumes/raid/IGM_highz/testICs2/example_v30.dat
+
+./genICs.x -L.2 -V0 -N128 -G128 -Z200  -o/Volumes/raid/IGM_highz/testICs2/ -bexample
+	   The same but for v_bc=0 and with output  /Volumes/raid/IGM_highz/testICs2/example.dat
+
+/******************************************************
+****************Generating transfer function***********
+******************************************************/ 
+The code in the subdirectory vbc_transfer/ generates the transfer
+functions that the initial conditions code uses.  The transfer
+function code generates a file that is supplied to CICASS, either (1)
+processing the CAMB transfer functions plus a few parameters and
+generating a consolidated file with the same redshifts as the CAMB
+outputs or (2) evolving forward the CAMB^* transfer function outputs
+from times when the baryons were nearly homogeneously distributed to
+later times (accounting for the velocity difference between the gas
+and dark matter).  See the header of vbc_transfer/main.cc for details
+on how this is done.  The approximation used in (2) is justified in
+Tseliakhovich and Hirata (2010) and McQuinn & O'Leary (2012).  For
+both calculations, *4* CAMB outputs are needed, one at z=0 to set the
+relative normalization (sigma_8 is supplied) and three at the redshift
+of initialization/ the redshift vbc is started. For example, for the
+latter the default is z_i = 1000 and z_i=997,1003.  The latter two are
+used to calculate the time derivative of the transfer functions at
+z=1000, which is proportional to the velocities.  Traditionally, the
+time derivative is not calculated and approximations are made (see
+McQuinn & O'Leary '12).
+
+Currently, temperature fluctuations are not implemented in the case
+where CAMB is directly used to calculate the transfer function as this
+transfer function is not output by CAMB (there is a 21cm program
+associated with CAMB that has this temperature calculation and that
+could be uses).  The calculations that evolve CAMB from z~1000 are
+able to incorporate such fluctuations as the temperature is coupled to
+that of the CMB (and homogeneous on the scale of the simulation box
+owing to Silk Damping).  Ignoring temperature fluctuations is not
+terrible as they are quite a bit smaller than the fluctuations in the
+gas density at z>~200 owing to Compton coupling to the CMB (but see
+Naoz & Barkana Mon.Not.Roy.Astron.Soc.362:1047-1053,2005 for the
+counter argument).  For simulations initialized at lower redshifts,
+this is less true.
+
+*http://camb.info;  CMBFast outputs will also work as the format is the same.  
+
+
+*****************Tips for running the ICS from this code on Gadget****
+If you are running this code on Gadget, please heed the following suggestions:
+
+Change the Hubble parameter to include radiation, i.e. add OmegaR/(a*a*a*a) where OmegaR = 4.15e-5/h*h
+
+With Gadget2, you need to start at z<~100 to approximately yield the
+correct thermal history as Gadget2 does not have proper cooling &
+heating (although, perhaps Compton heating can be implemented -- which
+is the only coolant of relevance in the IGM prior to reionization).
+However, starting at such low redshifts will result in errors in dense
+regions that form halos.
+
+If you are running with Gadget 3, you need to make sure Compton
+cooling on, and we suggest implementing a recombination coefficient
+that has been calibrated for low temperatures (see, for example, what
+Recfast uses: look at double alphaB_recomb() in vbc_transfer/main.c
+calculation).
+
+
+**********Tips for running the ICs from this code with Enzo******
+
+The Enzo initial condition outputs were tested on Enzo V2.1.1. They
+are generated in the same manner as for GADGET, but the output for a
+fixed hydro grid with dark matter particles (see 'enzo_out.c').  The
+particles can be initialized with a grid or a glass file.  The output
+is into hdf5 format, which is a required library for compilation.  Use
+the flag -DOUTPUT_ENZO (but turn off GADGET output).  You may need to
+change the defined variables FLOAT and EEINT for your individual
+system (found in enzo_out.c).
+
+We caution that many previous versions of the Enzo code import the
+temperature field incorrectly due to an error in the mean molecular
+weight (mu) and a slight error present in the Enzo temperature
+conversion value (OTEMP is incorrect by a few percent).  Some of these
+issues may be overcome by setting a constant temperature throughout
+the volume in the Enzo parameter file - but be cautious that the
+correct mean molecular weight is still used by the code.  In any case
+we recommend having an output at a small time step after the beginning
+of the initial conditions (z=199.9 for z_in=200.) to confirm the
+temperature units (and electron fraction) are correct.  The code
+currently uses the incorrect OTEMP conversion factor in generating the
+initial conditions to be consistent with what is used in Enzo V2.1.1.
+
+In order for our initial conditions to give the correct thermal state
+the following two parameters must be set in the enzo parameter file:
+
+DualEnergyFormalism = 1 // use total & internal energy
+DualEnergyFormalismEta2 = 1.0 //to get correct pressures
+
+The GridEnergy file must be imported as the total energy:
+CosmologySimulationTotalEnergyName      = GridEnergy
+
+To get the correct thermal history, the case B recombination rates
+should be used: 
+
+RateDataCaseBRecombination = 1 
+
+and the correct electron fraction must be set (see the electron
+fraction generated by the transfer function). Unfortunately the
+electron fraction is not entirely trivial to get correctly.  For z_in=200
+the electron fraction should be 3.33e-4, we set it as:
+
+CosmologySimulationInitialFractionHII = 2.754e-5 # for 3.33e-4 e- fraction
+
+
+				      	
+****************Problems with Code*********
+Currently does computation in double precision, which wastes memory.  This
+can be changed with a little work.
+
+The 2D interpolation of the transfer function for every k value is a
+bit slow and so can take hrs to compute the ICs for >~512^3 particles
+and vbc >0.  We recommend using openmp and multiple cores for large
+runs.

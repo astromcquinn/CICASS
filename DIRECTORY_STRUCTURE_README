@@ -1,0 +1,13 @@
+This is the CICASS IC generator code.  
+
+The subdirectory makeCosICs/ contains the primary README file and the
+IC generating code.  
+
+The subdirectory vbc_transfer/ contains the code
+that outputs the transfer function in the format that is required by
+the makeCosICs code.  In the case with a velocity difference between
+the baryons and dark matter, it generates a transfer function that has
+a net relative velocity.
+
+The subdirectory glass/ stores a glass file that has been evolved for
+10^4 in scale factor as suggested in Crocce et al (2006) to minimize transients.
