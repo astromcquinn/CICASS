@@ -10,7 +10,7 @@ The code was written a long time ago and is likely too inefficient to generate I
 larger than 1024^3.
 
 Simulations that were run with the CICASS ICs are shown here: https://sites.google.com/uw.edu/mattmcquinn/movies
-https://www.youtubeeducation.com/watch?v=c2-mJBxJwlw
+
 
 The subdirectory makeCosICs/ contains the primary README file and the
 IC generating code.  
