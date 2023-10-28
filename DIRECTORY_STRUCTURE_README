@@ -1,4 +1,4 @@
-This is the CICASS IC generator code.  
+This is the CICASS IC generator code.  This file repeats information given in the GitHub README.
 
 The subdirectory makeCosICs/ contains the primary README file and the
 IC generating code.  
