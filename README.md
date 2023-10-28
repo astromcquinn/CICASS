@@ -2,12 +2,15 @@
 initial conditions generator with streaming velocity
 
 This code is from https://arxiv.org/abs/1204.1344 and https://arxiv.org/abs/1204.1345 and has been used by many
-subsequent studies of streaming velocity.  It's chief use is to initialize streaming velocity simulations
+subsequent studies of streaming velocity.  Its chief use is to initialize streaming velocity simulations
 well after z=1000 by correctly evolving the linear equations and then initializing.  An alternative 
 is to start at z=1000 as in https://academic.oup.com/mnras/article/474/2/2173/4622957, and then because
 the baryons are very uniform you can boost the velocity of the baryons without the need for CICASS.
 The code was written a long time ago and is likely too inefficient to generate ICs for simulations 
 larger than 1024^3.
+
+Simulations that were run with the CICASS ICs are shown here: https://sites.google.com/uw.edu/mattmcquinn/movies
+https://www.youtubeeducation.com/watch?v=c2-mJBxJwlw
 
 The subdirectory makeCosICs/ contains the primary README file and the
 IC generating code.  
